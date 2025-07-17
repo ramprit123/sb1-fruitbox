@@ -1,23 +1,74 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Settings, CreditCard, MapPin, Bell, CircleHelp as HelpCircle, LogOut } from 'lucide-react-native';
+import {
+  User,
+  Settings,
+  CreditCard,
+  MapPin,
+  Bell,
+  CircleHelp as HelpCircle,
+  LogOut,
+} from 'lucide-react-native';
+import { useAuth, useUser } from '@clerk/clerk-expo';
+import { router } from 'expo-router';
 
 export default function ProfileScreen() {
+  const { signOut } = useAuth();
+  const { user } = useUser();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setIsSigningOut(true);
+            await signOut();
+            router.replace('/(auth)/sign-in');
+          } catch (error) {
+            console.error('Sign out error:', error);
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
+          } finally {
+            setIsSigningOut(false);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
       </View>
-      
+
       <ScrollView style={styles.content}>
         <View style={styles.profileCard}>
           <View style={styles.profileInfo}>
             <View style={styles.avatar}>
               <User size={32} color="#22c55e" />
             </View>
-            <Text style={styles.profileName}>Sarah Johnson</Text>
-            <Text style={styles.profileEmail}>sarah.johnson@email.com</Text>
+            <Text style={styles.profileName}>
+              {user?.fullName || user?.firstName || 'User'}
+            </Text>
+            <Text style={styles.profileEmail}>
+              {user?.primaryEmailAddress?.emailAddress || 'No email'}
+            </Text>
           </View>
         </View>
 
@@ -28,21 +79,21 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.menuText}>Settings</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={[styles.menuItem, styles.menuItemBorder]}>
             <View style={styles.menuIcon}>
               <CreditCard size={20} color="#4b5563" />
             </View>
             <Text style={styles.menuText}>Payment Methods</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={[styles.menuItem, styles.menuItemBorder]}>
             <View style={styles.menuIcon}>
               <MapPin size={20} color="#4b5563" />
             </View>
             <Text style={styles.menuText}>Addresses</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIcon}>
               <Bell size={20} color="#4b5563" />
@@ -58,12 +109,22 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.menuText}>Help & Support</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
+
+          <TouchableOpacity
+            style={[styles.menuItem, isSigningOut && styles.menuItemDisabled]}
+            onPress={handleSignOut}
+            disabled={isSigningOut}
+          >
             <View style={[styles.menuIcon, styles.logoutIcon]}>
-              <LogOut size={20} color="#ef4444" />
+              {isSigningOut ? (
+                <ActivityIndicator size={20} color="#ef4444" />
+              ) : (
+                <LogOut size={20} color="#ef4444" />
+              )}
             </View>
-            <Text style={styles.logoutText}>Sign Out</Text>
+            <Text style={styles.logoutText}>
+              {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -132,6 +193,9 @@ const styles = StyleSheet.create({
   menuItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+  },
+  menuItemDisabled: {
+    opacity: 0.6,
   },
   menuIcon: {
     width: 40,
