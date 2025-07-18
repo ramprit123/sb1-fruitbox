@@ -4,7 +4,7 @@ import { Home, Package, Search, ShoppingCart, User } from 'lucide-react-native';
 import { Dimensions } from 'react-native';
 
 export default function TabLayout() {
-  const { width, height } = Dimensions.get('window');
+  const { width } = Dimensions.get('window');
   const isTablet = width >= 768;
   const isSmallScreen = width < 375;
   const { itemCount } = useCart();
