@@ -213,12 +213,15 @@ export default function SearchScreen() {
                         style={styles.addToCartButton}
                         onPress={(e) => {
                           e.stopPropagation();
-                          addItem({
-                            id: product._id,
-                            title: product.name,
-                            price: product.price,
-                            image: product.imageUrl,
-                          });
+                          addItem(
+                            {
+                              id: product._id,
+                              title: product.name,
+                              price: product.price,
+                              image: product.imageUrl,
+                            },
+                            2,
+                          );
                         }}
                       >
                         <Plus size={16} color="#22c55e" />
