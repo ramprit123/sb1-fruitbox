@@ -26,6 +26,9 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useCart } from '@/context/CartContext';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { useConvexUser } from '@/hooks/useConvexUser';
 
 interface CategoryItemProps {
   icon: React.ReactNode;
@@ -162,8 +165,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
 export default function HomeScreen() {
   const headerOpacity = useSharedValue(0);
   const cardTranslateY = useSharedValue(50);
-  const { addItem } = useCart();
+  const { user } = useConvexUser();
 
+  // Fetch data from Convex
+  const categories = useQuery(api.products.getCategories);
+  const featuredProducts = useQuery(api.products.getFeaturedProducts);
+  const addSampleData = useMutation(api.products.addSampleData);
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: 800 });
     cardTranslateY.value = withSpring(0, {
@@ -187,6 +194,24 @@ export default function HomeScreen() {
     };
   });
 
+  // Add sample data if no products exist
+  useEffect(() => {
+    if (featuredProducts && featuredProducts.length === 0) {
+      addSampleData().catch(console.error);
+    }
+  }, [featuredProducts, addSampleData]);
+
+  // Show loading state
+  if (!categories && !featuredProducts) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading fresh products...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -194,7 +219,9 @@ export default function HomeScreen() {
         style={styles.scrollView}
       >
         <Animated.View style={[headerAnimatedStyle, styles.header]}>
-          <Text style={styles.greeting}>Good morning, Sarah</Text>
+          <Text style={styles.greeting}>
+            Good morning, {user?.firstName || 'there'}
+          </Text>
           <View style={styles.locationContainer}>
             <MapPin size={16} color="#22c55e" />
             <Text style={styles.locationText}>
@@ -205,24 +232,54 @@ export default function HomeScreen() {
 
         <View style={styles.categoriesContainer}>
           <View style={styles.categoriesRow}>
-            <CategoryItem
-              icon={<Apple size={24} color="#22c55e" />}
-              title="Fruit Box"
-              color="#dcfce7"
-              onPress={() => router.push('/search?category=fruits')}
-            />
-            <CategoryItem
-              icon={<Salad size={24} color="#22c55e" />}
-              title="Salad Box"
-              color="#dcfce7"
-              onPress={() => router.push('/search?category=salads')}
-            />
-            <CategoryItem
-              icon={<RefreshCw size={24} color="#22c55e" />}
-              title="Subscriptions"
-              color="#dcfce7"
-              onPress={() => router.push('/orders')}
-            />
+            {categories && categories.length > 0 ? (
+              categories
+                .slice(0, 4)
+                .map((category) => (
+                  <CategoryItem
+                    key={category._id}
+                    icon={
+                      category.name === 'Fruits Box' ? (
+                        <Apple size={24} color="#22c55e" />
+                      ) : category.name === 'Salad Box' ? (
+                        <Salad size={24} color="#22c55e" />
+                      ) : category.name === 'Daily' ? (
+                        <Star size={24} color="#22c55e" />
+                      ) : (
+                        <RefreshCw size={24} color="#22c55e" />
+                      )
+                    }
+                    title={category.name}
+                    color={'#dcfce7'}
+                    onPress={() =>
+                      router.push(
+                        `/search?category=${category.name.toLowerCase()}`,
+                      )
+                    }
+                  />
+                ))
+            ) : (
+              <>
+                <CategoryItem
+                  icon={<Apple size={24} color="#22c55e" />}
+                  title="Fruit Box"
+                  color="#dcfce7"
+                  onPress={() => router.push('/search?category=fruits')}
+                />
+                <CategoryItem
+                  icon={<Salad size={24} color="#22c55e" />}
+                  title="Salad Box"
+                  color="#dcfce7"
+                  onPress={() => router.push('/search?category=salads')}
+                />
+                <CategoryItem
+                  icon={<Star size={24} color="#22c55e" />}
+                  title="Daily"
+                  color="#dcfce7"
+                  onPress={() => router.push('/search?category=daily')}
+                />
+              </>
+            )}
           </View>
         </View>
 
@@ -281,30 +338,38 @@ export default function HomeScreen() {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Popular This Week</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <ProductCard
-              title="Fresh Fruit Box"
-              price="$24.99"
-              rating={4.8}
-              image="https://images.pexels.com/photos/1128678/pexels-photo-1128678.jpeg"
-              productId="fresh-fruit-box"
-              onPress={() => router.push('/product/fresh-fruit-box')}
-            />
-            <ProductCard
-              title="Green Salad Box"
-              price="$19.99"
-              rating={4.6}
-              image="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg"
-              productId="green-salad-box"
-              onPress={() => router.push('/product/green-salad-box')}
-            />
-            <ProductCard
-              title="Organic Mix"
-              price="$29.99"
-              rating={4.9}
-              image="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg"
-              productId="organic-mix"
-              onPress={() => router.push('/product/organic-mix')}
-            />
+            {featuredProducts && featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <ProductCard
+                  key={product._id}
+                  title={product.name}
+                  price={`$${product.price.toFixed(2)}`}
+                  rating={product.rating || 4.5}
+                  image={product.imageUrl}
+                  productId={product._id}
+                  onPress={() => router.push(`/product/${product._id}`)}
+                />
+              ))
+            ) : (
+              <>
+                <ProductCard
+                  title="Fresh Fruit Box"
+                  price="$24.99"
+                  rating={4.8}
+                  image="https://images.pexels.com/photos/1128678/pexels-photo-1128678.jpeg"
+                  productId="fresh-fruit-box"
+                  onPress={() => router.push('/product/fresh-fruit-box')}
+                />
+                <ProductCard
+                  title="Green Salad Box"
+                  price="$19.99"
+                  rating={4.6}
+                  image="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg"
+                  productId="green-salad-box"
+                  onPress={() => router.push('/product/green-salad-box')}
+                />
+              </>
+            )}
           </ScrollView>
         </View>
 
@@ -395,6 +460,7 @@ const styles = StyleSheet.create({
   locationText: {
     color: '#6b7280',
     marginLeft: 8,
+    fontWeight: '500',
   },
   categoriesContainer: {
     paddingHorizontal: 24,
@@ -636,5 +702,15 @@ const styles = StyleSheet.create({
     color: '#16a34a',
     fontWeight: 'bold',
     fontSize: 18,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '500',
   },
 });

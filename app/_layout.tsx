@@ -1,5 +1,6 @@
 import SplashScreen from '@/components/SplashScreen';
 import { CartProvider } from '@/context/CartContext';
+import { ConvexClientProvider } from '@/context/ConvexProvider';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { ClerkLoaded, ClerkLoading, ClerkProvider } from '@clerk/clerk-expo';
 import { Stack } from 'expo-router';
@@ -35,7 +36,7 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
   throw new Error(
-    'Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env'
+    'Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env',
   );
 }
 
@@ -48,14 +49,16 @@ export default function RootLayout() {
         <SplashScreen />
       </ClerkLoading>
       <ClerkLoaded>
-        <CartProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </CartProvider>
+        <ConvexClientProvider>
+          <CartProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </CartProvider>
+        </ConvexClientProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );

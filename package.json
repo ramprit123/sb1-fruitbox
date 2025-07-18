@@ -23,6 +23,7 @@
     "@lucide/lab": "^0.1.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/native": "^7.1.6",
+    "convex": "^1.25.4",
     "expo": "53.0.19",
     "expo-auth-session": "^6.2.1",
     "expo-blur": "~14.1.5",
