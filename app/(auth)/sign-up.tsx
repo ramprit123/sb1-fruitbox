@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useSignUp, useOAuth } from '@clerk/clerk-expo';
 import { Link, Redirect, router } from 'expo-router';
@@ -249,7 +250,10 @@ export default function SignUpScreen() {
                     style={styles.socialButton}
                     onPress={onGooglePress}
                   >
-                    <Text style={styles.socialButtonText}>🔍</Text>
+                    <Image
+                      source={require('../../assets/images/icons8-google.png')}
+                      style={styles.socialIcon}
+                    />
                     <Text style={styles.socialButtonLabel}>Google</Text>
                   </TouchableOpacity>
 
@@ -257,7 +261,10 @@ export default function SignUpScreen() {
                     style={styles.socialButton}
                     onPress={onFacebookPress}
                   >
-                    <Text style={styles.socialButtonText}>👥</Text>
+                    <Image
+                      source={require('../../assets/images/icons8-facebook.png')}
+                      style={styles.socialIcon}
+                    />
                     <Text style={styles.socialButtonLabel}>Facebook</Text>
                   </TouchableOpacity>
                 </Animated.View>
@@ -422,12 +429,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     paddingVertical: 16,
+    ...(Platform.OS === 'android' && {
+      textAlignVertical: 'center',
+      includeFontPadding: false,
+    }),
   },
   codeInput: {
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '600',
     letterSpacing: 4,
+    color: '#111827',
+    ...(Platform.OS === 'android' && {
+      textAlignVertical: 'center',
+      includeFontPadding: false,
+    }),
   },
   eyeIcon: {
     padding: 4,
@@ -512,6 +528,11 @@ const styles = StyleSheet.create({
   },
   socialButtonText: {
     fontSize: 20,
+    marginRight: 8,
+  },
+  socialIcon: {
+    width: 20,
+    height: 20,
     marginRight: 8,
   },
   socialButtonLabel: {

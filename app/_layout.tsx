@@ -1,10 +1,9 @@
-import { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { ClerkProvider, ClerkLoaded, ClerkLoading } from '@clerk/clerk-expo';
-import * as SecureStore from 'expo-secure-store';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import SplashScreen from '@/components/SplashScreen';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { ClerkLoaded, ClerkLoading, ClerkProvider } from '@clerk/clerk-expo';
+import { Stack } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { StatusBar } from 'expo-status-bar';
 
 const tokenCache = {
   async getToken(key: string) {

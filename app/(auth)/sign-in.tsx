@@ -1,28 +1,30 @@
+import { useAuth, useOAuth, useSignIn, useClerk } from '@clerk/clerk-expo';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, Redirect, router } from 'expo-router';
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Dimensions,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Image,
 } from 'react-native';
-import { useSignIn, useOAuth } from '@clerk/clerk-expo';
-import { Link, Redirect, router } from 'expo-router';
-import { useAuth } from '@clerk/clerk-expo';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-
-const { width } = Dimensions.get('window');
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen';
 
 export default function SignInScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId, sessionId } = useAuth();
   const { signIn, setActive, isLoaded } = useSignIn();
+  const { signOut } = useClerk();
   const { startOAuthFlow: googleOAuth } = useOAuth({
     strategy: 'oauth_google',
   });
@@ -35,10 +37,67 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState('');
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
 
-  // If user is already signed in, redirect to tabs
-  if (isSignedIn) {
-    return <Redirect href="/(tabs)" />;
+  if (isSignedIn && !showSessionDialog) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#f0fdf4', '#ffffff', '#f9fafb']}
+          style={styles.gradient}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Animated.View
+              entering={FadeInUp.delay(200).springify()}
+              style={styles.header}
+            >
+              <View style={styles.logoContainer}>
+                <LinearGradient
+                  colors={['#22c55e', '#16a34a']}
+                  style={styles.logo}
+                >
+                  <Text style={styles.logoText}>🍎</Text>
+                </LinearGradient>
+              </View>
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>You're already signed in</Text>
+            </Animated.View>
+
+            <Animated.View
+              entering={FadeInUp.delay(300).springify()}
+              style={styles.sessionContainer}
+            >
+              <View style={styles.sessionCard}>
+                <Text style={styles.sessionTitle}>Active Session Detected</Text>
+                <Text style={styles.sessionText}>
+                  You're already signed in. Choose an option:
+                </Text>
+                <View style={styles.sessionButtons}>
+                  <TouchableOpacity
+                    style={styles.continueButton}
+                    onPress={() => router.replace('/(tabs)')}
+                  >
+                    <Text style={styles.continueButtonText}>Continue</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.signOutButton}
+                    onPress={() => {
+                      setShowSessionDialog(true);
+                      handleSignOut();
+                    }}
+                  >
+                    <Text style={styles.signOutButtonText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </LinearGradient>
+      </View>
+    );
   }
 
   const onSignInPress = async () => {
@@ -89,7 +148,33 @@ export default function SignInScreen() {
       // Handle specific error types
       if (err.errors && err.errors.length > 0) {
         const errorMessage = err.errors[0].message;
-        if (errorMessage.includes('verification')) {
+
+        // Check if there's already an active session
+        if (
+          errorMessage.includes('session') ||
+          errorMessage.includes('already signed in')
+        ) {
+          Alert.alert(
+            'Session Already Exists',
+            'You are already signed in with another account. What would you like to do?',
+            [
+              {
+                text: 'Continue with current session',
+                onPress: () => router.replace('/(tabs)'),
+                style: 'default',
+              },
+              {
+                text: 'Sign out and continue',
+                onPress: () => handleSignOutAndContinue(),
+                style: 'destructive',
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+        } else if (errorMessage.includes('verification')) {
           Alert.alert(
             'Email Not Verified',
             'Please verify your email address before signing in. Check your inbox for a verification email.',
@@ -111,12 +196,63 @@ export default function SignInScreen() {
     }
   };
 
-  const onForgotPasswordPress = () => {
+  const handleSignOutAndContinue = async () => {
+    try {
+      await signOut();
+      // Clear form and try signing in again
+      setTimeout(() => {
+        onSignInPress();
+      }, 500);
+    } catch (error) {
+      console.error('Sign out error:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  const handleSessionDialog = () => {
     Alert.alert(
-      'Reset Password',
-      'Please contact support or visit our website to reset your password.',
-      [{ text: 'OK', style: 'default' }]
+      'Session Management',
+      'You have an active session. Choose an option:',
+      [
+        {
+          text: 'Continue with current session',
+          onPress: () => router.replace('/(tabs)'),
+          style: 'default',
+        },
+        {
+          text: 'Sign out',
+          onPress: () => handleSignOut(),
+          style: 'destructive',
+        },
+        {
+          text: 'Sign in with different account',
+          onPress: () => {
+            setShowSessionDialog(true);
+            handleSignOut();
+          },
+          style: 'default',
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
     );
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setShowSessionDialog(false);
+      Alert.alert('Success', 'You have been signed out successfully.');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  const onForgotPasswordPress = () => {
+    router.push('/(auth)/forgot-password');
   };
 
   const onGooglePress = async () => {
@@ -135,6 +271,30 @@ export default function SignInScreen() {
           'Browser Already Open',
           'Please close any open browser windows and try again.',
           [{ text: 'OK', style: 'default' }]
+        );
+      } else if (
+        err.message?.includes('session') ||
+        err.message?.includes('already signed in')
+      ) {
+        Alert.alert(
+          'Session Already Exists',
+          'You are already signed in. Would you like to sign out first?',
+          [
+            {
+              text: 'Continue with current session',
+              onPress: () => router.replace('/(tabs)'),
+              style: 'default',
+            },
+            {
+              text: 'Sign out and continue',
+              onPress: () => handleSignOutAndRetryOAuth('google'),
+              style: 'destructive',
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
         );
       } else {
         Alert.alert('Error', 'Google sign in failed. Please try again.');
@@ -161,11 +321,53 @@ export default function SignInScreen() {
           'Please close any open browser windows and try again.',
           [{ text: 'OK', style: 'default' }]
         );
+      } else if (
+        err.message?.includes('session') ||
+        err.message?.includes('already signed in')
+      ) {
+        Alert.alert(
+          'Session Already Exists',
+          'You are already signed in. Would you like to sign out first?',
+          [
+            {
+              text: 'Continue with current session',
+              onPress: () => router.replace('/(tabs)'),
+              style: 'default',
+            },
+            {
+              text: 'Sign out and continue',
+              onPress: () => handleSignOutAndRetryOAuth('facebook'),
+              style: 'destructive',
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
+        );
       } else {
         Alert.alert('Error', 'Facebook sign in failed. Please try again.');
       }
     } finally {
       setOauthLoading('');
+    }
+  };
+
+  const handleSignOutAndRetryOAuth = async (
+    provider: 'google' | 'facebook'
+  ) => {
+    try {
+      await signOut();
+      setTimeout(() => {
+        if (provider === 'google') {
+          onGooglePress();
+        } else {
+          onFacebookPress();
+        }
+      }, 500);
+    } catch (error) {
+      console.error('Sign out error:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
     }
   };
 
@@ -291,7 +493,10 @@ export default function SignInScreen() {
                 onPress={onGooglePress}
                 disabled={oauthLoading !== ''}
               >
-                <Text style={styles.socialButtonText}>🔍</Text>
+                <Image
+                  source={require('../../assets/images/icons8-google.png')}
+                  style={styles.socialIcon}
+                />
                 <Text style={styles.socialButtonLabel}>
                   {oauthLoading === 'google' ? 'Loading...' : 'Google'}
                 </Text>
@@ -305,7 +510,10 @@ export default function SignInScreen() {
                 onPress={onFacebookPress}
                 disabled={oauthLoading !== ''}
               >
-                <Text style={styles.socialButtonText}>👥</Text>
+                <Image
+                  source={require('../../assets/images/icons8-facebook.png')}
+                  style={styles.socialIcon}
+                />
                 <Text style={styles.socialButtonLabel}>
                   {oauthLoading === 'facebook' ? 'Loading...' : 'Facebook'}
                 </Text>
@@ -342,20 +550,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: wp('6%'),
   },
   header: {
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: hp('8%'),
+    paddingBottom: hp('5%'),
   },
   logoContainer: {
-    marginBottom: 24,
+    marginBottom: hp('3%'),
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: wp('20%'),
+    height: wp('20%'),
+    borderRadius: wp('10%'),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#22c55e',
@@ -365,33 +573,33 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: wp('8%'),
   },
   title: {
-    fontSize: 32,
+    fontSize: wp('8%'),
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 8,
+    marginBottom: hp('1%'),
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: wp('4%'),
     color: '#6b7280',
     textAlign: 'center',
   },
   formContainer: {
-    marginBottom: 32,
+    marginBottom: hp('4%'),
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: hp('2.5%'),
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    borderRadius: wp('4%'),
+    paddingHorizontal: wp('4%'),
+    paddingVertical: hp('0.5%'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -401,20 +609,24 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: wp('3%'),
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: wp('4%'),
     color: '#111827',
-    paddingVertical: 16,
+    paddingVertical: hp('2%'),
+    ...(Platform.OS === 'android' && {
+      textAlignVertical: 'center',
+      includeFontPadding: false,
+    }),
   },
   eyeIcon: {
-    padding: 4,
+    padding: wp('1%'),
   },
   signInButton: {
-    borderRadius: 16,
-    marginTop: 8,
+    borderRadius: wp('4%'),
+    marginTop: hp('1%'),
     shadowColor: '#22c55e',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -425,22 +637,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: hp('2.2%'),
+    borderRadius: wp('4%'),
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   signInButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: wp('4%'),
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: wp('2%'),
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 32,
+    marginVertical: hp('4%'),
   },
   divider: {
     flex: 1,
@@ -449,14 +661,14 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     color: '#9ca3af',
-    fontSize: 14,
-    paddingHorizontal: 16,
+    fontSize: wp('3.5%'),
+    paddingHorizontal: wp('4%'),
     fontWeight: '500',
   },
   socialContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 32,
+    marginBottom: hp('4%'),
   },
   socialButton: {
     flex: 1,
@@ -464,9 +676,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginHorizontal: 8,
+    paddingVertical: hp('2%'),
+    borderRadius: wp('4%'),
+    marginHorizontal: wp('2%'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -476,21 +688,26 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
   },
   socialButtonText: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: wp('5%'),
+    marginRight: wp('2%'),
+  },
+  socialIcon: {
+    width: wp('5%'),
+    height: wp('5%'),
+    marginRight: wp('2%'),
   },
   socialButtonLabel: {
     color: '#374151',
-    fontSize: 16,
+    fontSize: wp('4%'),
     fontWeight: '500',
   },
   linkContainer: {
     alignItems: 'center',
-    paddingBottom: 40,
+    paddingBottom: hp('5%'),
   },
   linkText: {
     color: '#6b7280',
-    fontSize: 16,
+    fontSize: wp('4%'),
     textAlign: 'center',
   },
   linkAccent: {
@@ -499,11 +716,68 @@ const styles = StyleSheet.create({
   },
   forgotPasswordContainer: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: hp('2%'),
   },
   forgotPasswordText: {
     color: '#6b7280',
-    fontSize: 14,
+    fontSize: wp('3.5%'),
     textDecorationLine: 'underline',
+  },
+  sessionContainer: {
+    marginBottom: hp('3%'),
+  },
+  sessionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: wp('4%'),
+    padding: wp('5%'),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  sessionTitle: {
+    fontSize: wp('4.5%'),
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: hp('1%'),
+    textAlign: 'center',
+  },
+  sessionText: {
+    fontSize: wp('3.5%'),
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: hp('2%'),
+  },
+  sessionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: wp('3%'),
+  },
+  continueButton: {
+    flex: 1,
+    backgroundColor: '#22c55e',
+    paddingVertical: hp('1.5%'),
+    borderRadius: wp('3%'),
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    color: '#ffffff',
+    fontSize: wp('3.5%'),
+    fontWeight: '600',
+  },
+  signOutButton: {
+    flex: 1,
+    backgroundColor: '#ef4444',
+    paddingVertical: hp('1.5%'),
+    borderRadius: wp('3%'),
+    alignItems: 'center',
+  },
+  signOutButtonText: {
+    color: '#ffffff',
+    fontSize: wp('3.5%'),
+    fontWeight: '600',
   },
 });
