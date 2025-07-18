@@ -6,15 +6,20 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
-import { Search, Filter, X } from 'lucide-react-native';
+import { useLocalSearchParams, router } from 'expo-router';
+import { Search, Filter, X, Star, Plus } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { useCart } from '@/context/CartContext';
 
 export default function SearchScreen() {
   const { category } = useLocalSearchParams<{ category?: string }>();
@@ -22,6 +27,25 @@ export default function SearchScreen() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState(category || 'all');
   const filterScale = useSharedValue(0);
+  const { addItem } = useCart();
+
+  // Fetch data from Convex
+  const categories = useQuery(api.products.getCategories);
+  const searchResults = useQuery(
+    api.products.searchProducts,
+    searchQuery || activeFilter !== 'all'
+      ? {
+          searchTerm: searchQuery,
+          category: activeFilter !== 'all' ? activeFilter : undefined,
+          limit: 50,
+        }
+      : 'skip',
+  );
+
+  const allProducts = useQuery(api.products.getProducts, { limit: 50 });
+
+  const products =
+    searchQuery || activeFilter !== 'all' ? searchResults : allProducts;
 
   const filterAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -66,77 +90,46 @@ export default function SearchScreen() {
         </View>
 
         {isFilterOpen && (
-          <Animated.View style={[filterAnimatedStyle, styles.filterContainer]}>
-            <Text style={styles.filterTitle}>Filters</Text>
+          <Animated.View style={[styles.filterPanel, filterAnimatedStyle]}>
             <View style={styles.filterTags}>
               <TouchableOpacity
                 style={[
                   styles.filterTag,
-                  activeFilter === 'fruits' && styles.filterTagActive,
+                  activeFilter === 'all' && styles.filterTagActive,
                 ]}
-                onPress={() => handleFilterSelect('fruits')}
+                onPress={() => handleFilterSelect('all')}
               >
                 <Text
                   style={
-                    activeFilter === 'fruits'
+                    activeFilter === 'all'
                       ? styles.filterTagActiveText
                       : styles.filterTagText
                   }
                 >
-                  Fruits
+                  All
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterTag,
-                  activeFilter === 'vegetables' && styles.filterTagActive,
-                ]}
-                onPress={() => handleFilterSelect('vegetables')}
-              >
-                <Text
-                  style={
-                    activeFilter === 'vegetables'
-                      ? styles.filterTagActiveText
-                      : styles.filterTagText
-                  }
-                >
-                  Vegetables
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterTag,
-                  activeFilter === 'organic' && styles.filterTagActive,
-                ]}
-                onPress={() => handleFilterSelect('organic')}
-              >
-                <Text
-                  style={
-                    activeFilter === 'organic'
-                      ? styles.filterTagActiveText
-                      : styles.filterTagText
-                  }
-                >
-                  Organic
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterTag,
-                  activeFilter === 'salads' && styles.filterTagActive,
-                ]}
-                onPress={() => handleFilterSelect('salads')}
-              >
-                <Text
-                  style={
-                    activeFilter === 'salads'
-                      ? styles.filterTagActiveText
-                      : styles.filterTagText
-                  }
-                >
-                  Salads
-                </Text>
-              </TouchableOpacity>
+              {categories &&
+                categories.map((category) => (
+                  <TouchableOpacity
+                    key={category._id}
+                    style={[
+                      styles.filterTag,
+                      activeFilter === category.name && styles.filterTagActive,
+                    ]}
+                    onPress={() => handleFilterSelect(category.name)}
+                  >
+                    <Text
+                      style={
+                        activeFilter === category.name
+                          ? styles.filterTagActiveText
+                          : styles.filterTagText
+                      }
+                    >
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
             </View>
           </Animated.View>
         )}
@@ -178,6 +171,85 @@ export default function SearchScreen() {
               : 'Start typing to search for products'}
           </Text>
         </View>
+
+        {/* Products Section */}
+        {products && products.length > 0 && (
+          <View style={styles.productsSection}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery ? 'Search Results' : 'Products'} ({products.length})
+            </Text>
+            <View style={styles.productsGrid}>
+              {products.map((product) => (
+                <TouchableOpacity
+                  key={product._id}
+                  style={styles.productCard}
+                  onPress={() => router.push(`/product/${product._id}`)}
+                >
+                  <Image
+                    source={{ uri: product.imageUrl }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{product.name}</Text>
+                    <Text style={styles.productDescription} numberOfLines={2}>
+                      {product.description}
+                    </Text>
+                    <View style={styles.productFooter}>
+                      <View style={styles.productPriceContainer}>
+                        <Text style={styles.productPrice}>
+                          ${product.price.toFixed(2)}
+                        </Text>
+                        {product.rating && (
+                          <View style={styles.ratingContainer}>
+                            <Star size={12} color="#fbbf24" fill="#fbbf24" />
+                            <Text style={styles.ratingText}>
+                              {product.rating}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.addToCartButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          addItem({
+                            id: product._id,
+                            title: product.name,
+                            price: product.price,
+                            image: product.imageUrl,
+                          });
+                        }}
+                      >
+                        <Plus size={16} color="#22c55e" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Loading State */}
+        {products === undefined && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#22c55e" />
+            <Text style={styles.loadingText}>Loading products...</Text>
+          </View>
+        )}
+
+        {/* No Results State */}
+        {products &&
+          products.length === 0 &&
+          (searchQuery || activeFilter !== 'all') && (
+            <View style={styles.emptyState}>
+              <Search size={48} color="#d1d5db" />
+              <Text style={styles.emptyStateText}>
+                No products found for "{searchQuery || activeFilter}"
+              </Text>
+            </View>
+          )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -226,6 +298,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  filterPanel: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   filterContainer: {
     backgroundColor: 'white',
@@ -311,5 +394,89 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     marginTop: 16,
+  },
+  productsSection: {
+    marginTop: 16,
+    paddingBottom: 32,
+  },
+  productsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  productCard: {
+    width: '48%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  productImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f3f4f6',
+  },
+  productInfo: {
+    padding: 12,
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  productDescription: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  productFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  productPriceContainer: {
+    flex: 1,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#16a34a',
+    marginBottom: 2,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  addToCartButton: {
+    backgroundColor: '#dcfce7',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 16,
+    fontWeight: '500',
   },
 });

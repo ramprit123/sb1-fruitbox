@@ -171,6 +171,7 @@ export default function HomeScreen() {
   const categories = useQuery(api.products.getCategories);
   const featuredProducts = useQuery(api.products.getFeaturedProducts);
   const addSampleData = useMutation(api.products.addSampleData);
+  const addExtendedSampleData = useMutation(api.products.addExtendedSampleData);
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: 800 });
     cardTranslateY.value = withSpring(0, {
@@ -194,12 +195,12 @@ export default function HomeScreen() {
     };
   });
 
-  // Add sample data if no products exist
+  // Add extended sample data if no products exist
   useEffect(() => {
     if (featuredProducts && featuredProducts.length === 0) {
-      addSampleData().catch(console.error);
+      addExtendedSampleData().catch(console.error);
     }
-  }, [featuredProducts, addSampleData]);
+  }, [featuredProducts, addExtendedSampleData]);
 
   // Show loading state
   if (!categories && !featuredProducts) {
