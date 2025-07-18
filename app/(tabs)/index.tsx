@@ -1,15 +1,31 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Apple, Salad, RefreshCw, Plus, Star } from 'lucide-react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring, 
+import {
+  MapPin,
+  Apple,
+  Salad,
+  RefreshCw,
+  Plus,
+  Star,
+} from 'lucide-react-native';
+import { router } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
   withTiming,
   interpolate,
-  runOnJS
+  runOnJS,
 } from 'react-native-reanimated';
+import { useCart } from '@/context/CartContext';
 
 interface CategoryItemProps {
   icon: React.ReactNode;
@@ -18,7 +34,12 @@ interface CategoryItemProps {
   onPress: () => void;
 }
 
-const CategoryItem: React.FC<CategoryItemProps> = ({ icon, title, color, onPress }) => {
+const CategoryItem: React.FC<CategoryItemProps> = ({
+  icon,
+  title,
+  color,
+  onPress,
+}) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -62,19 +83,25 @@ interface ProductCardProps {
   price: string;
   rating: number;
   image: string;
+  productId: string;
   onPress: () => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ title, price, rating, image, onPress }) => {
+const ProductCard: React.FC<ProductCardProps> = ({
+  title,
+  price,
+  rating,
+  image,
+  productId,
+  onPress,
+}) => {
   const scale = useSharedValue(1);
   const translateY = useSharedValue(0);
+  const { addItem } = useCart();
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [
-        { scale: scale.value },
-        { translateY: translateY.value }
-      ],
+      transform: [{ scale: scale.value }, { translateY: translateY.value }],
     };
   });
 
@@ -110,7 +137,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ title, price, rating, image, 
           </View>
           <View style={styles.productFooter}>
             <Text style={styles.productPrice}>{price}</Text>
-            <TouchableOpacity style={styles.addButton}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                const priceNumber = parseFloat(price.replace('$', ''));
+                addItem({
+                  id: productId,
+                  title,
+                  price: priceNumber,
+                  image,
+                });
+              }}
+            >
               <Plus size={16} color="#22c55e" />
             </TouchableOpacity>
           </View>
@@ -123,10 +162,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ title, price, rating, image, 
 export default function HomeScreen() {
   const headerOpacity = useSharedValue(0);
   const cardTranslateY = useSharedValue(50);
+  const { addItem } = useCart();
 
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: 800 });
-    cardTranslateY.value = withSpring(0, { 
+    cardTranslateY.value = withSpring(0, {
       damping: 12,
       stiffness: 100,
     });
@@ -136,7 +176,7 @@ export default function HomeScreen() {
     return {
       opacity: headerOpacity.value,
       transform: [
-        { translateY: interpolate(headerOpacity.value, [0, 1], [-20, 0]) }
+        { translateY: interpolate(headerOpacity.value, [0, 1], [-20, 0]) },
       ],
     };
   });
@@ -149,12 +189,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         <Animated.View style={[headerAnimatedStyle, styles.header]}>
           <Text style={styles.greeting}>Good morning, Sarah</Text>
           <View style={styles.locationContainer}>
             <MapPin size={16} color="#22c55e" />
-            <Text style={styles.locationText}>Delivering to 123 Park Avenue</Text>
+            <Text style={styles.locationText}>
+              Delivering to 123 Park Avenue
+            </Text>
           </View>
         </Animated.View>
 
@@ -164,19 +209,19 @@ export default function HomeScreen() {
               icon={<Apple size={24} color="#22c55e" />}
               title="Fruit Box"
               color="#dcfce7"
-              onPress={() => console.log('Fruit Box pressed')}
+              onPress={() => router.push('/search?category=fruits')}
             />
             <CategoryItem
               icon={<Salad size={24} color="#22c55e" />}
               title="Salad Box"
               color="#dcfce7"
-              onPress={() => console.log('Salad Box pressed')}
+              onPress={() => router.push('/search?category=salads')}
             />
             <CategoryItem
               icon={<RefreshCw size={24} color="#22c55e" />}
               title="Subscriptions"
               color="#dcfce7"
-              onPress={() => console.log('Subscriptions pressed')}
+              onPress={() => router.push('/orders')}
             />
           </View>
         </View>
@@ -188,7 +233,10 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.promoSubtitle}>Today's Special</Text>
             <Text style={styles.promoTitle}>Mediterranean Box</Text>
-            <TouchableOpacity style={styles.promoButton}>
+            <TouchableOpacity
+              style={styles.promoButton}
+              onPress={() => router.push('/product/mediterranean-box')}
+            >
               <Text style={styles.promoButtonText}>Order Now</Text>
             </TouchableOpacity>
           </View>
@@ -197,28 +245,36 @@ export default function HomeScreen() {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Health Tips</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.healthTipCard}>
+            <TouchableOpacity style={styles.healthTipCard}>
               <Image
-                source={{ uri: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg' }}
+                source={{
+                  uri: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
+                }}
                 style={styles.healthTipImage}
                 resizeMode="cover"
               />
               <View style={styles.healthTipContent}>
                 <Text style={styles.healthTipTitle}>Boost Your Immunity</Text>
-                <Text style={styles.healthTipDescription}>Add these fruits to your daily diet</Text>
+                <Text style={styles.healthTipDescription}>
+                  Add these fruits to your daily diet
+                </Text>
               </View>
-            </View>
-            <View style={styles.healthTipCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.healthTipCard}>
               <Image
-                source={{ uri: 'https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg' }}
+                source={{
+                  uri: 'https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg',
+                }}
                 style={styles.healthTipImage}
                 resizeMode="cover"
               />
               <View style={styles.healthTipContent}>
                 <Text style={styles.healthTipTitle}>Healthy Eating</Text>
-                <Text style={styles.healthTipDescription}>Make your meals more nutritious</Text>
+                <Text style={styles.healthTipDescription}>
+                  Make your meals more nutritious
+                </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -230,28 +286,33 @@ export default function HomeScreen() {
               price="$24.99"
               rating={4.8}
               image="https://images.pexels.com/photos/1128678/pexels-photo-1128678.jpeg"
-              onPress={() => console.log('Fresh Fruit Box pressed')}
+              productId="fresh-fruit-box"
+              onPress={() => router.push('/product/fresh-fruit-box')}
             />
             <ProductCard
               title="Green Salad Box"
               price="$19.99"
               rating={4.6}
               image="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg"
-              onPress={() => console.log('Green Salad Box pressed')}
+              productId="green-salad-box"
+              onPress={() => router.push('/product/green-salad-box')}
             />
             <ProductCard
               title="Organic Mix"
               price="$29.99"
               rating={4.9}
               image="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg"
-              onPress={() => console.log('Organic Mix pressed')}
+              productId="organic-mix"
+              onPress={() => router.push('/product/organic-mix')}
             />
           </ScrollView>
         </View>
 
         <View style={styles.filtersContainer}>
           <View style={styles.filtersRow}>
-            <TouchableOpacity style={[styles.filterButton, styles.filterButtonActive]}>
+            <TouchableOpacity
+              style={[styles.filterButton, styles.filterButtonActive]}
+            >
               <Text style={styles.filterButtonActiveText}>All</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.filterButton}>
@@ -269,9 +330,14 @@ export default function HomeScreen() {
         <View style={styles.recommendedContainer}>
           <Text style={styles.sectionTitle}>Recommended For You</Text>
           <View style={styles.recommendedGrid}>
-            <View style={styles.recommendedItem}>
+            <TouchableOpacity
+              style={styles.recommendedItem}
+              onPress={() => router.push('/product/berry-box')}
+            >
               <Image
-                source={{ uri: 'https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg' }}
+                source={{
+                  uri: 'https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg',
+                }}
                 style={styles.recommendedImage}
                 resizeMode="cover"
               />
@@ -279,10 +345,15 @@ export default function HomeScreen() {
                 <Text style={styles.recommendedTitle}>Berry Box</Text>
                 <Text style={styles.recommendedPrice}>$22.99</Text>
               </View>
-            </View>
-            <View style={styles.recommendedItem}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.recommendedItem}
+              onPress={() => router.push('/product/tropical-mix')}
+            >
               <Image
-                source={{ uri: 'https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg' }}
+                source={{
+                  uri: 'https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg',
+                }}
                 style={styles.recommendedImage}
                 resizeMode="cover"
               />
@@ -290,7 +361,7 @@ export default function HomeScreen() {
                 <Text style={styles.recommendedTitle}>Tropical Mix</Text>
                 <Text style={styles.recommendedPrice}>$26.99</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

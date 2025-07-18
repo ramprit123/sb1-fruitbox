@@ -1,24 +1,62 @@
+import { useCart } from '@/context/CartContext';
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Search, ShoppingCart, Package, User } from 'lucide-react-native';
+import { Home, Package, Search, ShoppingCart, User } from 'lucide-react-native';
+import { Dimensions } from 'react-native';
 
 export default function TabLayout() {
+  const { width, height } = Dimensions.get('window');
+  const isTablet = width >= 768;
+  const isSmallScreen = width < 375;
+  const { itemCount } = useCart();
+  const getResponsiveValues = () => {
+    if (isTablet) {
+      return {
+        tabBarHeight: 75,
+        iconSize: 26,
+        fontSize: 13,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+      };
+    } else if (isSmallScreen) {
+      return {
+        tabBarHeight: 60,
+        iconSize: 20,
+        fontSize: 10,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+      };
+    } else {
+      return {
+        tabBarHeight: 65,
+        iconSize: 22,
+        fontSize: 11,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+      };
+    }
+  };
+
+  const responsive = getResponsiveValues();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#22c55e',
         tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          height: 80,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: responsive.fontSize,
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarIconStyle: {
+          marginBottom: 2,
         },
       }}
     >
@@ -26,17 +64,23 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Home size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Home size={responsive.iconSize} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="product/[id]"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color, size }) => (
-            <Search size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Search size={responsive.iconSize} color={color} />
           ),
         }}
       />
@@ -44,6 +88,7 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: 'Cart',
+          tabBarBadge: itemCount > 0 ? itemCount : undefined,
           tabBarIcon: ({ color, size }) => (
             <ShoppingCart size={size} color={color} />
           ),
@@ -53,8 +98,8 @@ export default function TabLayout() {
         name="orders"
         options={{
           title: 'Orders',
-          tabBarIcon: ({ color, size }) => (
-            <Package size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Package size={responsive.iconSize} color={color} />
           ),
         }}
       />
@@ -62,8 +107,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <User size={responsive.iconSize} color={color} />
           ),
         }}
       />

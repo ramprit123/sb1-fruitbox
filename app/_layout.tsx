@@ -1,4 +1,5 @@
 import SplashScreen from '@/components/SplashScreen';
+import { CartProvider } from '@/context/CartContext';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { ClerkLoaded, ClerkLoading, ClerkProvider } from '@clerk/clerk-expo';
 import { Stack } from 'expo-router';
@@ -47,12 +48,14 @@ export default function RootLayout() {
         <SplashScreen />
       </ClerkLoading>
       <ClerkLoaded>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
+        <CartProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="auto" />
+        </CartProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );
